@@ -397,3 +397,46 @@ body {
 /* 展示页竖排：角色 token 单独一行、居中 */
 .x-showlist.standalone { gap: 20px; }
 .x-showlist .x-token { margin: 0 auto; }
+
+/* 展示页自动缩放：内容超出时整体缩小，避免顶部被裁掉 */
+.x-show { overflow: hidden; }
+.x-showlist { transform-origin: center center; transition: transform 0.18s ease; min-height: 0; }
+.x-showlist { flex: 1 1 auto; }
+.x-show-actions { flex: none; }
+.x-sheet-head { padding-bottom: 6px; }
+.x-sheet-head input { width: 100%; }
+.x-sheet-foot .x-btn { font-weight: 700; }
+/* 已经记录过的角色给个标记 */
+.x-role.used { border-color: rgba(217, 185, 120, 0.6); background: rgba(52, 40, 26, 0.85); }
+.x-role.used::after { content: "✓"; color: var(--gold); font-size: 13px; margin-left: auto; }
+
+/* 展示页的元素不允许被 flex 压扁，超出交给整体缩放处理 */
+.x-showlist > * { flex: 0 0 auto; }
+
+/* 展示页最终布局：内容绝对居中，整体缩放；按钮固定在底部 */
+.x-show { display: block; overflow: hidden; }
+.x-showlist {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 32px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transform-origin: center center;
+  transition: transform 0.16s ease;
+}
+.x-showlist > * { flex: 0 0 auto; }
+.x-show-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  z-index: 5;
+}

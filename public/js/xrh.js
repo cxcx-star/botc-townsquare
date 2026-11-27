@@ -96,6 +96,7 @@
     $('#btnShow').disabled = empty;
     $('#btnShow').textContent = empty ? '显示' : ('显示（' + queue.length + ' 项）');
     $('#btnClearTop').classList.toggle('on', !empty);
+    updateSheetFoot();
   }
 
   /* ---------- 提示卡 ---------- */
@@ -146,13 +147,18 @@
   }
 
   /* ---------- 角色列表 ---------- */
+  function updateSheetFoot() {
+    var btn = $('#pickDone');
+    if (btn) btn.textContent = queue.length ? ('返回（已记录 ' + queue.length + ' 项）') : '返回';
+  }
+
   function openSheet() {
     $('#search').value = '';
     renderRoles('');
+    updateSheetFoot();
     $('#sheet').hidden = false;
     $('#back').hidden = false;
     setClose(false);
-    setTimeout(function () { try { $('#search').focus(); } catch (e) { /* noop */ } }, 60);
   }
 
   function closeSheet() {
@@ -173,12 +179,13 @@
       if (kw && r.name.indexOf(kw) < 0 && r.id.indexOf(kw) < 0) return;
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'x-role team-' + r.team;
+      var used = queue.some(function (q) { return q.type === 'role' && q.role.id === r.id; });
+      b.className = 'x-role team-' + r.team + (used ? ' used' : '');
       b.innerHTML = (r.image ? '<img src="' + r.image + '" alt="" loading="lazy">' : '') +
         '<span>' + r.name + '</span><em>' + (TEAM_NAME[r.team] || '') + '</em>';
       b.addEventListener('click', function () {
         addItem({ type: 'role', role: r });
-        closeSheet();
+        renderRoles($('#search').value);      // 不关闭，重新标记已选
       });
       box.appendChild(b);
     });
@@ -220,6 +227,24 @@
     $('#show').hidden = false;
     $('#back').hidden = false;
     setClose(false);
+    fitShow();
+  }
+
+  /* 内容放不下就整体等比缩小（以中心为基准），保证第一行和底部按钮都在屏幕内 */
+  function fitShow() {
+    var box = $('#showList');
+    var host = $('#show');
+    box.style.transform = 'translate(-50%, -50%)';
+    requestAnimationFrame(function () {
+      var availH = host.clientHeight - 130;    // 留出底部按钮
+      var availW = host.clientWidth - 32;
+      var h = box.offsetHeight;
+      var w = box.offsetWidth;
+      if (!h || !w) return;
+      var s = Math.min(1, availH / h, availW / w);
+      s = Math.max(0.32, s);
+      box.style.transform = 'translate(-50%, -50%) scale(' + s.toFixed(3) + ')';
+    });
   }
 
   function closeDisplay() {
@@ -251,7 +276,7 @@
   /* ---------- 事件 ---------- */
   $('#roleBtn').addEventListener('click', openSheet);
   $('#search').addEventListener('input', function (e) { renderRoles(e.target.value); });
-  $('#pickCancel').addEventListener('click', closeSheet);
+  $('#pickDone').addEventListener('click', closeSheet);
   $('#btnShow').addEventListener('click', showDisplay);
   $('#btnClearTop').addEventListener('click', function () { if (queue.length) clearQueue(); });
   $('#btnShowBack').addEventListener('click', function (e) { e.stopPropagation(); closeDisplay(); });
