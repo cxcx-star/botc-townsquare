@@ -192,6 +192,40 @@ body {
 .x-show-text b { color: var(--gold-hi); font-weight: 700; }
 .x-show-tip { margin: 0; font-size: 12.5px; color: #6f6659; letter-spacing: 0.16em; }
 
+/* 顶部角色按钮 */
+.x-rolerow { display: flex; justify-content: center; padding: 0 16px 10px; }
+.x-rolechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 9px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(217, 185, 120, 0.32);
+  background: rgba(24, 19, 26, 0.85);
+  color: var(--dim);
+  font: 600 13.5px/1 inherit;
+  letter-spacing: 0.06em;
+}
+.x-rolechip .x-rolechip-label { color: #7d7264; font-weight: 500; }
+.x-rolechip .x-rolechip-value { color: var(--gold-hi); max-width: 62vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.x-rolechip .x-rolechip-value.on { color: var(--gold-hi); }
+.x-rolechip:active { transform: scale(0.98); }
+
+/* 展示页底部按钮 */
+.x-show-actions { display: flex; gap: 12px; }
+.x-show-btn {
+  padding: 13px 26px;
+  border-radius: 99px;
+  border: 1px solid rgba(217, 185, 120, 0.55);
+  background: linear-gradient(180deg, rgba(217, 185, 120, 0.2), rgba(217, 185, 120, 0.07));
+  color: var(--gold-hi);
+  font: 700 15px/1 inherit;
+  letter-spacing: 0.1em;
+}
+.x-show-btn.ghost { border-color: rgba(255, 255, 255, 0.12); background: rgba(20, 16, 24, 0.8); color: var(--dim); font-weight: 600; }
+.x-show-btn:active { transform: scale(0.97); }
+
 /* 被魔典内嵌时的关闭按钮 */
 .x-close {
   position: fixed;

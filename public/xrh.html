@@ -14,11 +14,19 @@
 
 <header class="x-head">
   <h1>信息提示</h1>
-  <p class="x-sub">点一条，把屏幕递给玩家</p>
+  <p class="x-sub">点一张提示卡，再把屏幕递给玩家</p>
 </header>
+
+<div class="x-rolerow">
+  <button class="x-rolechip" id="roleChip" type="button">
+    <span class="x-rolechip-label">角色</span>
+    <span class="x-rolechip-value" id="roleChipValue">未选择</span>
+  </button>
+</div>
 
 <main class="x-grid" id="grid"></main>
 
+<!-- 角色选择 -->
 <section class="x-sheet" id="sheet" hidden>
   <div class="x-sheet-head">
     <input id="search" type="search" placeholder="搜索角色…" autocomplete="off">
@@ -30,9 +38,13 @@
   </div>
 </section>
 
+<!-- 展示 -->
 <section class="x-show" id="show" hidden>
   <div class="x-show-text" id="showText"></div>
-  <p class="x-show-tip">点任意处返回</p>
+  <div class="x-show-actions">
+    <button class="x-show-btn" id="btnChangeRole" type="button">换角色</button>
+    <button class="x-show-btn ghost" id="btnShowBack" type="button">返回</button>
+  </div>
 </section>
 
 <script src="/js/xrh.js"></script>
