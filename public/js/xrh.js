@@ -188,24 +188,35 @@
   }
 
   /* ---------- 展示 ---------- */
+  function textClass(t) {
+    var n = String(t || '').length;
+    if (n <= 2) return 'len-s';
+    if (n <= 4) return 'len-m';
+    return 'len-l';
+  }
+
   function showDisplay() {
     if (!queue.length) return;
     var box = $('#showList');
     box.innerHTML = '';
+
     queue.forEach(function (item) {
-      var line = document.createElement('div');
-      if (item.type === 'role') {
-        line.className = 'x-line role';
-        line.innerHTML = item.role.image
-          ? '<img src="' + item.role.image + '" alt="">'
-          : '<span class="x-line-name">?</span>';
-      } else {
+      if (item.type === 'phrase') {
+        var line = document.createElement('div');
         line.className = 'x-line text';
         line.textContent = item.label;
+        box.appendChild(line);
+        return;
       }
-      box.appendChild(line);
+      // 角色：token 图标 + 名字写在里面
+      var t = document.createElement('div');
+      t.className = 'x-token with-text ' + textClass(item.role.name);
+      t.innerHTML = (item.role.image ? '<img src="' + item.role.image + '" alt="">' : '<div class="x-token-blank"></div>') +
+        '<span class="x-token-text">' + item.role.name + '</span>';
+      box.appendChild(t);
     });
-    box.className = 'x-showlist n' + Math.min(queue.length, 6);
+
+    box.className = 'x-showlist n' + Math.min(queue.length, 6) + ' standalone';
     $('#show').hidden = false;
     $('#back').hidden = false;
     setClose(false);
