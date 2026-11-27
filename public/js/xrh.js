@@ -1,17 +1,17 @@
-/* 信息提示工具
-   流程：先挑一张提示卡 → （需要角色时）用「角色」按钮挑角色 → 全屏大字递给玩家。
-   角色可以从顶部按钮预先选好，所有提示卡共用同一个角色，切角色时展示页当场跟着变。 */
+/* 信息提示
+   用法：点提示卡 / 点「角色」从列表里挑角色，按下的顺序被记录下来；
+   最后按底部「显示」，把记录下来的内容按顺序铺满屏幕。
+   角色在展示页只显示 token 图标，不显示名字。 */
 (function () {
   'use strict';
 
   var $ = function (s) { return document.querySelector(s); };
 
-  /* ---------- 提示卡 ---------- */
   var PHRASES = [
-    { id: 'you-are', label: '你是', slot: 'role', tpl: '你是 <b>__</b>' },
-    { id: 'this-is', label: '这名玩家是', slot: 'role', tpl: '这名玩家是 <b>__</b>' },
-    { id: 'affect', label: '该角色的技能作用于你', slot: 'role', tpl: '<b>__</b> 的技能作用于你' },
-    { id: 'absent', label: '这些角色不在场', slot: 'roles', tpl: '这些角色不在场：<b>__</b>' },
+    { id: 'you-are', label: '你是' },
+    { id: 'this-is', label: '这名玩家是' },
+    { id: 'affect', label: '该角色的技能作用于你' },
+    { id: 'absent', label: '这些角色不在场' },
     { id: 'nominate', label: '你昨天提名了吗' },
     { id: 'vote', label: '你昨天投票了吗' },
     { id: 'choose', label: '做出你的选择' },
@@ -20,20 +20,13 @@
     { id: 'minions', label: '他们是你的爪牙' }
   ];
 
-  var TEAM_NAME = {
-    townsfolk: '镇民', outsider: '外来者', minion: '爪牙', demon: '恶魔',
-    traveler: '旅行者', fabled: '传奇'
-  };
   var TEAM_ORDER = { townsfolk: 0, outsider: 1, minion: 2, demon: 3, traveler: 4, fabled: 5 };
+  var TEAM_NAME = { townsfolk: '镇民', outsider: '外来者', minion: '爪牙', demon: '恶魔', traveler: '旅行者' };
 
-  var roles = [];        // 全部角色
-  var pool = [];         // 按当前剧本筛过的角色
-  var pickedRoles = [];  // 顶栏选中的角色（单选用 1 个，多选用多个）
-  var activePhrase = null;
-  var pickerMode = 'single';   // single | multi
-  var pickerIntent = 'chip';   // chip（只设角色）| phrase（选完直接展示）| change（展示页换角色）
+  var roles = [];
+  var pool = [];
+  var queue = [];              // { type:'phrase', label } | { type:'role', role }
 
-  /* 从魔典带过来的剧本信息 */
   var query = new URLSearchParams(location.search);
   var onlyEdition = (query.get('edition') || '').toLowerCase();
   var onlyRoles = (query.get('roles') || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
@@ -54,7 +47,6 @@
               name: r.name,
               team: r.team || '',
               edition: r.edition || '',
-              ability: r.ability || '',
               image: String(r.image || '').replace(/^\/oss\//, '/gs/oss/')
             };
           })
@@ -80,21 +72,30 @@
     pool = roles.slice();
   }
 
-  /* ---------- 顶栏：角色按钮 ---------- */
-  function renderRoleChip() {
-    var v = $('#roleChipValue');
-    if (!pickedRoles.length) {
-      v.textContent = '未选择';
-      v.classList.remove('on');
-      return;
-    }
-    v.classList.add('on');
-    v.textContent = pickedRoles.map(function (r) { return r.name; }).join('、');
+  /* ---------- 记录区 ---------- */
+  function addItem(item) {
+    queue.push(item);
+    renderAll();
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* noop */ } }
   }
 
-  function setPicked(list) {
-    pickedRoles = list || [];
-    renderRoleChip();
+  function removeAt(i) {
+    queue.splice(i, 1);
+    renderAll();
+  }
+
+  function clearQueue() {
+    queue = [];
+    renderAll();
+  }
+
+  function renderAll() {
+    renderGrid();
+    renderQueue();
+    var empty = queue.length === 0;
+    $('#btnShow').disabled = empty;
+    $('#btnShow').textContent = empty ? '显示' : ('显示（' + queue.length + ' 项）');
+    $('#btnClearTop').classList.toggle('on', !empty);
   }
 
   /* ---------- 提示卡 ---------- */
@@ -102,36 +103,51 @@
     var box = $('#grid');
     box.innerHTML = '';
     PHRASES.forEach(function (p) {
+      var used = queue.some(function (q) { return q.type === 'phrase' && q.label === p.label; });
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'x-card' + (p.slot === 'roles' ? ' wide' : '');
-      var hint = p.slot === 'role' ? '需要角色' : (p.slot === 'roles' ? '可选多个角色' : '');
-      b.innerHTML = p.label + (hint ? '<span class="tpl">' + hint + '</span>' : '');
-      b.addEventListener('click', function () { tapCard(p); });
+      b.className = 'x-card' + (used ? ' on' : '');
+      b.textContent = p.label;
+      b.addEventListener('click', function () {
+        if (used) {
+          var i = -1;
+          queue.forEach(function (q, k) { if (q.type === 'phrase' && q.label === p.label) i = k; });
+          if (i >= 0) removeAt(i);
+          return;
+        }
+        addItem({ type: 'phrase', label: p.label });
+      });
       box.appendChild(b);
     });
   }
 
-  function tapCard(p) {
-    activePhrase = p;
-    if (!p.slot) { showPhrase(p); return; }
-
-    var need = p.slot === 'roles' ? 'multi' : 'single';
-    var enough = pickedRoles.length > 0 && (need === 'single' || pickedRoles.length > 1);
-    if (enough) { showPhrase(p); return; }
-
-    // 没选角色：打开选择器，选完直接展示这张卡
-    openPicker(need, 'phrase');
+  /* ---------- 已记录 ---------- */
+  function renderQueue() {
+    var box = $('#queue');
+    box.innerHTML = '';
+    if (!queue.length) {
+      box.innerHTML = '<p class="x-queue-empty">点上面的提示卡，或点「角色」挑角色，会按顺序记在这里</p>';
+      return;
+    }
+    queue.forEach(function (item, i) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'x-chip' + (item.type === 'role' ? ' token' : '');
+      chip.dataset.i = i;
+      if (item.type === 'role') {
+        chip.innerHTML = '<img src="' + (item.role.image || '') + '" alt="">';
+        chip.title = item.role.name;
+      } else {
+        chip.textContent = item.label;
+      }
+      chip.addEventListener('click', function () { removeAt(i); });
+      box.appendChild(chip);
+    });
   }
 
-  /* ---------- 选择器 ---------- */
-  function openPicker(mode, intent) {
-    pickerMode = mode;
-    pickerIntent = intent;
-
+  /* ---------- 角色列表 ---------- */
+  function openSheet() {
     $('#search').value = '';
-    $('#pickOk').disabled = true;
-    $('#pickOk').textContent = mode === 'multi' ? '确定（可多选）' : '确定';
     renderRoles('');
     $('#sheet').hidden = false;
     $('#back').hidden = false;
@@ -139,9 +155,14 @@
     setTimeout(function () { try { $('#search').focus(); } catch (e) { /* noop */ } }, 60);
   }
 
-  function renderRoles(filter) {
+  function closeSheet() {
+    $('#sheet').hidden = true;
+    if ($('#show').hidden) { $('#back').hidden = true; setClose(true); }
+  }
+
+  function renderRoles(kw) {
     var box = $('#roles');
-    var kw = String(filter || '').trim();
+    kw = String(kw || '').trim();
     box.innerHTML = '';
     pool.slice().sort(function (a, b) {
       var da = TEAM_ORDER[a.team] == null ? 9 : TEAM_ORDER[a.team];
@@ -152,9 +173,13 @@
       if (kw && r.name.indexOf(kw) < 0 && r.id.indexOf(kw) < 0) return;
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'x-role team-' + r.team + (pickedRoles.indexOf(r) >= 0 ? ' on' : '');
-      b.innerHTML = (r.image ? '<img src="' + r.image + '" alt="" loading="lazy">' : '') + '<span>' + r.name + '</span>';
-      b.addEventListener('click', function () { tapRole(r, b); });
+      b.className = 'x-role team-' + r.team;
+      b.innerHTML = (r.image ? '<img src="' + r.image + '" alt="" loading="lazy">' : '') +
+        '<span>' + r.name + '</span><em>' + (TEAM_NAME[r.team] || '') + '</em>';
+      b.addEventListener('click', function () {
+        addItem({ type: 'role', role: r });
+        closeSheet();
+      });
       box.appendChild(b);
     });
     if (!box.children.length) {
@@ -162,57 +187,32 @@
     }
   }
 
-  function tapRole(r, el) {
-    if (pickerMode === 'multi') {
-      var i = pickedRoles.indexOf(r);
-      if (i >= 0) { pickedRoles.splice(i, 1); el.classList.remove('on'); }
-      else { pickedRoles.push(r); el.classList.add('on'); }
-      $('#pickOk').disabled = !pickedRoles.length;
-      $('#pickOk').textContent = pickedRoles.length ? ('确定（已选 ' + pickedRoles.length + ' 个）') : '确定';
-      renderRoleChip();
-      return;
-    }
-    // 单选：点一下就定了
-    setPicked([r]);
-    finishPick();
-  }
-
-  function finishPick() {
-    var intent = pickerIntent;
-    closeSheet(true);
-    if (intent === 'phrase' && activePhrase) { showPhrase(activePhrase); return; }
-    if (intent === 'change' && activePhrase) { showPhrase(activePhrase); return; }
-    // chip：只更新顶栏，回首页
-    setClose(true);
-  }
-
-  function closeSheet(keepCloseHidden) {
-    $('#sheet').hidden = true;
-    if (!keepCloseHidden && $('#show').hidden) setClose(true);
-  }
-
   /* ---------- 展示 ---------- */
-  function phraseText(p) {
-    if (p.slot === 'roles') return p.tpl.replace('__', pickedRoles.map(function (r) { return r.name; }).join('、'));
-    if (p.slot === 'role') return p.tpl.replace('__', pickedRoles.length ? pickedRoles[0].name : '');
-    return p.label;
-  }
-
-  function showPhrase(p) {
-    activePhrase = p;
-    $('#showText').innerHTML = phraseText(p);
-    $('#sheet').hidden = true;
+  function showDisplay() {
+    if (!queue.length) return;
+    var box = $('#showList');
+    box.innerHTML = '';
+    queue.forEach(function (item) {
+      var line = document.createElement('div');
+      if (item.type === 'role') {
+        line.className = 'x-line role';
+        line.innerHTML = item.role.image
+          ? '<img src="' + item.role.image + '" alt="">'
+          : '<span class="x-line-name">?</span>';
+      } else {
+        line.className = 'x-line text';
+        line.textContent = item.label;
+      }
+      box.appendChild(line);
+    });
+    box.className = 'x-showlist n' + Math.min(queue.length, 6);
     $('#show').hidden = false;
     $('#back').hidden = false;
-
-    var needRole = p.slot === 'role' || p.slot === 'roles';
-    $('#btnChangeRole').hidden = !needRole;
-    if (navigator.vibrate) { try { navigator.vibrate(14); } catch (e) { /* noop */ } }
+    setClose(false);
   }
 
-  function closeShow() {
+  function closeDisplay() {
     $('#show').hidden = true;
-    activePhrase = null;
     if ($('#sheet').hidden) { $('#back').hidden = true; setClose(true); }
   }
 
@@ -238,39 +238,34 @@
   }
 
   /* ---------- 事件 ---------- */
-  $('#roleChip').addEventListener('click', function () { openPicker('single', 'chip'); });
+  $('#roleBtn').addEventListener('click', openSheet);
   $('#search').addEventListener('input', function (e) { renderRoles(e.target.value); });
-  $('#pickCancel').addEventListener('click', function () { closeSheet(); });
-  $('#pickOk').addEventListener('click', function () {
-    if (!pickedRoles.length) return;
-    finishPick();
-  });
-
-  $('#btnChangeRole').addEventListener('click', function (e) {
+  $('#pickCancel').addEventListener('click', closeSheet);
+  $('#btnShow').addEventListener('click', showDisplay);
+  $('#btnClearTop').addEventListener('click', function () { if (queue.length) clearQueue(); });
+  $('#btnShowBack').addEventListener('click', function (e) { e.stopPropagation(); closeDisplay(); });
+  $('#btnShowClear').addEventListener('click', function (e) {
     e.stopPropagation();
-    openPicker(activePhrase && activePhrase.slot === 'roles' ? 'multi' : 'single', 'change');
+    clearQueue();
+    closeDisplay();
   });
-  $('#btnShowBack').addEventListener('click', function (e) { e.stopPropagation(); closeShow(); });
   $('#show').addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('.x-show-btn')) return;
-    closeShow();
+    closeDisplay();
   });
-
   $('#back').addEventListener('click', function () {
-    if (!$('#show').hidden) { closeShow(); return; }
+    if (!$('#show').hidden) { closeDisplay(); return; }
     closeSheet();
   });
-
   window.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (!$('#show').hidden) { closeShow(); return; }
+    if (!$('#show').hidden) { closeDisplay(); return; }
     if (!$('#sheet').hidden) { closeSheet(); return; }
     try { if (embedded) window.parent.postMessage('xrh-close', '*'); } catch (err) { /* noop */ }
   });
 
   /* ---------- 启动 ---------- */
-  renderGrid();
-  renderRoleChip();
+  renderAll();
   addEmbeddedClose();
   loadRoles().then(function () {
     var sub = document.querySelector('.x-sub');
@@ -280,6 +275,6 @@
       var map = { tb: '暗流涌动', bmr: '黯月初升', snv: '梦殒春宵', hdcs: '华灯初上', exp: '实验性角色', syyl: '山雨欲来', ngj: '无上愉悦', luf: '窃窃私语' };
       label = map[onlyEdition] || '';
     }
-    sub.textContent = label ? ('当前剧本：' + label + ' · 点提示卡') : '点一张提示卡，再把屏幕递给玩家';
+    sub.textContent = label ? ('当前剧本：' + label) : '点提示卡和角色，最后按「显示」';
   });
 })();

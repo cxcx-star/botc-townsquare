@@ -14,36 +14,42 @@
 
 <header class="x-head">
   <h1>信息提示</h1>
-  <p class="x-sub">点一张提示卡，再把屏幕递给玩家</p>
+  <p class="x-sub">点提示卡和角色，最后按「显示」递给玩家</p>
 </header>
 
-<div class="x-rolerow">
-  <button class="x-rolechip" id="roleChip" type="button">
-    <span class="x-rolechip-label">角色</span>
-    <span class="x-rolechip-value" id="roleChipValue">未选择</span>
+<div class="x-toolbar">
+  <button class="x-rolebtn" id="roleBtn" type="button">
+    <span class="x-rolebtn-icon">◈</span>
+    <span>角色</span>
   </button>
+  <button class="x-clear" id="btnClearTop" type="button">清空</button>
 </div>
 
 <main class="x-grid" id="grid"></main>
 
-<!-- 角色选择 -->
+<div class="x-queue-wrap">
+  <div class="x-queue" id="queue"></div>
+</div>
+
+<footer class="x-foot">
+  <button class="x-showbar" id="btnShow" type="button" disabled>显示</button>
+</footer>
+
+<!-- 角色列表 -->
 <section class="x-sheet" id="sheet" hidden>
   <div class="x-sheet-head">
     <input id="search" type="search" placeholder="搜索角色…" autocomplete="off">
-    <button id="pickCancel" type="button">取消</button>
+    <button id="pickCancel" type="button">关闭</button>
   </div>
   <div class="x-roles" id="roles"></div>
-  <div class="x-sheet-foot">
-    <button class="x-btn" id="pickOk" type="button">确定</button>
-  </div>
 </section>
 
 <!-- 展示 -->
 <section class="x-show" id="show" hidden>
-  <div class="x-show-text" id="showText"></div>
+  <div class="x-showlist" id="showList"></div>
   <div class="x-show-actions">
-    <button class="x-show-btn" id="btnChangeRole" type="button">换角色</button>
-    <button class="x-show-btn ghost" id="btnShowBack" type="button">返回</button>
+    <button class="x-show-btn" id="btnShowBack" type="button">返回</button>
+    <button class="x-show-btn ghost" id="btnShowClear" type="button">清空</button>
   </div>
 </section>
 
