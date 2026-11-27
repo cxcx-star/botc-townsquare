@@ -254,13 +254,18 @@
 
       /* 工具里按 Esc 或自己退出时也能关掉浮层 */
       window.addEventListener('message', function (ev) {
-        if (ev && ev.data === 'deal-applied') { pullRoles(); pullRoles(); }
-        if (ev && (ev.data === 'xrh-close' || ev.data === 'deal-close')) hintLayer.style.display = 'none';
+        if (ev && ev.data === 'deal-applied') { overlayOpen = false; pullRoles(); }
+        if (ev && (ev.data === 'xrh-close' || ev.data === 'deal-close')) {
+          hintLayer.style.display = 'none';
+          overlayOpen = false;
+          pullRoles();
+        }
       });
     }
     var fr = document.getElementById('gs-hint-frame');
     if (fr && target) fr.src = target;
     hintLayer.style.display = 'block';
+    overlayOpen = true;          // 浮层里在操作（比如下发），暂停回写避免魔典反复重绘
     if (hasRoom) push(true);
   }
 
@@ -320,8 +325,10 @@
   /* 反向同步：房间里的「座位 → 角色」如果和魔典不一致（比如刚用下发系统抽过），
      就把房间的角色写回魔典的 store，魔典界面当场刷新。 */
   var pullInflight = false;
+  var overlayOpen = false;
+
   function pullRoles() {
-    if (!hasRoom || pullInflight) return;
+    if (!hasRoom || pullInflight || overlayOpen) return;
     var st = getStore();
     if (!st) return;
     pullInflight = true;

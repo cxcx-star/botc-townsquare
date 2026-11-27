@@ -22,6 +22,7 @@
   var pool = [];        // 待领的角色（[{id,name,team,ability,image}]）
   var picked = {};      // seat -> role
   var seatRole = null;  // 「按已分配角色」时：seat -> role
+  var screen = 'scSetup';  // 当前屏，用状态而不是计时器防连点
   var idx = 0;          // 当前队列位置
   var mode = 'assigned';
   var order = 'asc';
@@ -35,6 +36,7 @@
   }
 
   function show(id) {
+    screen = id;
     ['scSetup', 'scPick', 'scReveal', 'scPass', 'scDone'].forEach(function (x) {
       $('#' + x).hidden = (x !== id);
     });
@@ -57,8 +59,23 @@
           };
         });
         buildScriptPool();
+        preloadIcons();
       })
       .catch(function () { rolesById = {}; });
+  }
+
+  /* 预加载角色图标与牌背，翻牌瞬间不卡 */
+  function preloadIcons() {
+    var seen = {};
+    function pre(url) {
+      if (!url || seen[url]) return;
+      seen[url] = 1;
+      var im = new Image();
+      im.decoding = 'async';
+      im.src = url;
+    }
+    pre('/gs/oss/data_file/clocktower/web/token1.png');
+    scriptPool.forEach(function (r) { pre(r.image); });
   }
 
   function buildScriptPool() {
@@ -196,22 +213,37 @@
       b.className = 'card';
       b.textContent = '染';
       b.addEventListener('click', function () {
+        if (screen !== 'scPick') return;      // 已经翻过牌就不再响应
         b.classList.add('picked');
-        setTimeout(function () { reveal(p, role, i); }, 160);
+        reveal(p, role, i);
       });
       deck.appendChild(b);
     });
     show('scPick');
   }
 
-  /* 把抽到的角色写回房间，魔典和广场会跟着变 */
+  /* 把抽到的角色写回房间：合并成少量请求，避免连点时排队 */
+  var pendingWrites = {};
+  var flushTimer = null;
+
   function pushRole(p, role) {
     if (!/^[A-Z0-9]{4}$/.test(code) || !p.id) return;
-    fetch('/api/room/' + code + '/intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'character', id: p.id, character: role.id })
-    }).catch(function () { /* 离线就跳过 */ });
+    pendingWrites[p.id] = role.id;
+    if (flushTimer) return;
+    flushTimer = setTimeout(flushRoles, 220);
+  }
+
+  function flushRoles() {
+    flushTimer = null;
+    var batch = pendingWrites;
+    pendingWrites = {};
+    Object.keys(batch).forEach(function (id) {
+      fetch('/api/room/' + code + '/intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'character', id: id, character: batch[id] })
+      }).catch(function () { /* 离线就跳过 */ });
+    });
   }
 
   function reveal(p, role, i) {
@@ -240,6 +272,7 @@
 
   /* ---------- 完成 ---------- */
   function finish() {
+    if (flushTimer) { clearTimeout(flushTimer); flushRoles(); }
     // 收尾再写一遍，防止中途某次网络抖动漏写
     Object.keys(picked).forEach(function (seat) {
       var p = null;
@@ -261,9 +294,16 @@
   bindSeg('#segMode', 'mode', function (v) { mode = v; renderSetup(); });
   bindSeg('#segOrder', 'order', function (v) { order = v; renderSetup(); });
 
-  $('#btnStart').addEventListener('click', startDeal);
-  $('#btnClaim').addEventListener('click', function () { renderPick(queue[idx]); });
+  $('#btnStart').addEventListener('click', function () {
+    if (screen !== 'scSetup') return;
+    startDeal();
+  });
+  $('#btnClaim').addEventListener('click', function () {
+    if (screen !== 'scPass') return;
+    renderPick(queue[idx]);
+  });
   $('#btnNext').addEventListener('click', function () {
+    if (screen !== 'scReveal') return;
     idx++;
     if (idx >= queue.length) { showDone(); return; }
     nextTurn(false);
